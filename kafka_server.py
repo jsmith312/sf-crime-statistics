@@ -1,7 +1,6 @@
 import json
 import producer_server
 
-
 def run_kafka_server():
 	# get the json file path
     input_file = "police-department-calls-for-service.json"
