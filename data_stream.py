@@ -13,7 +13,7 @@ schema = StructType([
     StructField("call_date", StringType(), True),
     StructField("offense_date", StringType(), True),
     StructField("call_time", StringType(), True),
-    StructField("call_date_time", StringType(), True),
+    StructField("call_date_time", TimestampType(), True),
     StructField("disposition", StringType(), True),
     StructField("address", StringType(), True),
     StructField("city", StringType(), True),
@@ -35,6 +35,7 @@ def run_spark_job(spark):
         .option("subscribe", "police.calls") \
         .option("maxOffsetsPerTrigger", 200) \
         .option("maxRatePerPartition", 100) \
+        .option("startingOffsets", "earliest") \
         .option("stopGracefullyOnShutdown", "true") \
         .load()
 
@@ -50,10 +51,12 @@ def run_spark_job(spark):
         .select("DF.*")
 
     # select original_crime_type_name and disposition
-    distinct_table = service_table.select("original_crime_type_name","disposition")
+    distinct_table = service_table.select("original_crime_type_name", "disposition", "call_date_time").withWatermark("call_date_time", "60 minutes")
 
     # count the number of original crime type
-    agg_df = distinct_table.groupBy("original_crime_type_name").count()
+    agg_df = distinct_table \
+        .groupBy("original_crime_type_name", psf.window("call_date_time", "60 minutes")) \
+        .count()
 
     agg_df.printSchema()
 
